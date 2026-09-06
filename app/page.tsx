@@ -87,6 +87,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [shareTarget, setShareTarget] = useState<"whatsapp" | "email" | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const supplierNameRef = useRef<HTMLInputElement>(null);
 
@@ -264,29 +265,81 @@ export default function Home() {
     flash("קובץ הנתונים מוכן לפתיחה באקסל");
   };
 
-  const buildShareText = () => [
-    `הזמנת עבודה ${order.orderNumber}`,
-    order.title,
-    `תאריך: ${displayDate(order.orderDate)}`,
-    `ספק: ${order.supplierName || "טרם הוזן"}`,
-    order.supplierContact && `איש קשר: ${order.supplierContact}`,
-    order.supplierPhone && `טלפון: ${order.supplierPhone}`,
-    order.deliveryDate && `מועד אספקה: ${displayDate(order.deliveryDate)}`,
-    order.description && `תיאור: ${order.description}`,
-    order.cost && `עלות: ₪ ${Number(order.cost).toLocaleString("he-IL")} ${order.vatIncluded === "כן" ? "כולל מע״מ" : "לא כולל מע״מ"}`,
-    order.priceIncludes && `המחיר כולל: ${order.priceIncludes}`,
-    `תנאי תשלום: ${order.paymentTerms}`,
-    "קבוצת משה חדיף – פרויקט מגן אברהם 17/19",
-  ].filter(Boolean).join("\n");
-
-  const shareWhatsApp = () => {
-    const shareUrl = `https://wa.me/?text=${encodeURIComponent(buildShareText())}`;
-    window.open(shareUrl, "_blank", "noopener,noreferrer");
+  const createOfficialPdf = async () => {
+    const documentElement = window.document.getElementById("print-order");
+    if (!documentElement) throw new Error("order preview unavailable");
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
+    const canvas = await html2canvas(documentElement, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      windowWidth: 1200,
+      onclone: (clonedDocument) => {
+        const clonedOrder = clonedDocument.getElementById("print-order");
+        if (clonedOrder) {
+          clonedOrder.style.width = "850px";
+          clonedOrder.style.minHeight = "1100px";
+          clonedOrder.style.padding = "42px 58px";
+          clonedOrder.style.boxShadow = "none";
+        }
+      },
+    });
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+    const maxWidth = 194;
+    const maxHeight = 281;
+    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+    const width = canvas.width * ratio;
+    const height = canvas.height * ratio;
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", (210 - width) / 2, 8, width, height, undefined, "FAST");
+    const safeNumber = order.orderNumber.replace(/[^\p{L}\p{N}._-]+/gu, "-");
+    return new File([pdf.output("blob")], `הזמנת-עבודה-${safeNumber}.pdf`, { type: "application/pdf" });
   };
 
-  const shareEmail = () => {
-    const subject = `הזמנת עבודה ${order.orderNumber}${order.title ? ` – ${order.title}` : ""}`;
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildShareText())}`;
+  const downloadFile = (file: File) => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(file);
+    link.download = file.name;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  };
+
+  const shareOfficialOrder = async (target: "whatsapp" | "email") => {
+    const liveTitle = titleRef.current?.value.trim() || order.title.trim();
+    const liveSupplierName = supplierNameRef.current?.value.trim() || order.supplierName.trim();
+    if (!liveTitle) {
+      titleRef.current?.focus();
+      flash("יש למלא את כותרת ההזמנה לפני השיתוף");
+      return;
+    }
+    if (!liveSupplierName) {
+      supplierNameRef.current?.focus();
+      flash("יש למלא את שם הספק לפני השיתוף");
+      return;
+    }
+    setShareTarget(target);
+    try {
+      if (liveTitle !== order.title || liveSupplierName !== order.supplierName) {
+        setOrder((current) => ({ ...current, title: liveTitle, supplierName: liveSupplierName }));
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      }
+      const file = await createOfficialPdf();
+      const shareData: ShareData = {
+        title: `הזמנת עבודה ${order.orderNumber}`,
+        text: `מצורפת הזמנת עבודה רשמית עבור ${liveSupplierName}`,
+        files: [file],
+      };
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+      } else {
+        downloadFile(file);
+        flash(target === "whatsapp" ? "קובץ ה‑PDF הורד. צרף אותו ב‑WhatsApp" : "קובץ ה‑PDF הורד. צרף אותו להודעת המייל");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      flash("לא ניתן להכין את קובץ ההזמנה. נסה שוב");
+    } finally {
+      setShareTarget(null);
+    }
   };
 
   const supplierLine = [order.supplierName, order.supplierId && `ח.פ./עוסק ${order.supplierId}`].filter(Boolean).join(" · ");
@@ -382,8 +435,8 @@ export default function Home() {
             <div className="editor-actions">
               <button className="button primary" type="button" disabled={isSaving} onClick={() => void saveOrder()}>{isSaving ? "שומר ומסנכרן..." : "שמירת הזמנה"}</button>
               <button className="button secondary" type="button" onClick={() => window.print()}>הדפסה / PDF</button>
-              <button className="button share whatsapp" type="button" onClick={shareWhatsApp}>שיתוף ב‑WhatsApp</button>
-              <button className="button share email" type="button" onClick={shareEmail}>שיתוף במייל</button>
+              <button className="button share whatsapp" type="button" disabled={shareTarget !== null} onClick={() => void shareOfficialOrder("whatsapp")}>{shareTarget === "whatsapp" ? "מכין PDF..." : "שיתוף PDF ב‑WhatsApp"}</button>
+              <button className="button share email" type="button" disabled={shareTarget !== null} onClick={() => void shareOfficialOrder("email")}>{shareTarget === "email" ? "מכין PDF..." : "שיתוף PDF במייל"}</button>
             </div>
           </form>
 
