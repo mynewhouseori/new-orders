@@ -92,6 +92,14 @@ export default function Home() {
   const supplierNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw-or-v3.js", { scope: "/" }).catch(() => {
+        // The application remains usable even if installation support is unavailable.
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     let active = true;
     const loadOrders = async () => {
       try {
