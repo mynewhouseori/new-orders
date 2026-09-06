@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Order = {
   id: string;
@@ -87,6 +87,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const supplierNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -136,19 +137,7 @@ export default function Home() {
 
   const selectSupplier = (name: string) => {
     const selected = suppliers.find((supplier) => supplier.name === name);
-    if (!selected) {
-      setOrder((current) => ({
-        ...current,
-        supplierName: "",
-        supplierId: "",
-        supplierContact: "",
-        supplierPhone: "",
-        supplierEmail: "",
-        supplierAddress: "",
-        updatedAt: new Date().toISOString(),
-      }));
-      return;
-    }
+    if (!selected) return;
     setOrder((current) => ({
       ...current,
       supplierName: selected.name,
@@ -159,6 +148,20 @@ export default function Home() {
       supplierAddress: selected.address,
       updatedAt: new Date().toISOString(),
     }));
+  };
+
+  const beginNewSupplier = () => {
+    setOrder((current) => ({
+      ...current,
+      supplierName: "",
+      supplierId: "",
+      supplierContact: "",
+      supplierPhone: "",
+      supplierEmail: "",
+      supplierAddress: "",
+      updatedAt: new Date().toISOString(),
+    }));
+    window.requestAnimationFrame(() => supplierNameRef.current?.focus());
   };
 
   const nextNumber = useMemo(() => {
@@ -308,14 +311,18 @@ export default function Home() {
             <Field label="כותרת ההזמנה" required><input placeholder="לדוגמה: עבודות מיזוג אוויר" value={order.title} onChange={(event) => setField("title", event.target.value)} /></Field>
 
             <Divider number="02" title="פרטי הספק" />
-            <Field label={`בחירת ספק קיים (${suppliers.length})`}>
-              <select value={suppliers.some((supplier) => supplier.name === order.supplierName) ? order.supplierName : ""} onChange={(event) => selectSupplier(event.target.value)}>
-                <option value="">ספק חדש / הזנה ידנית</option>
-                {suppliers.map((supplier) => <option key={supplier.id} value={supplier.name}>{supplier.name}</option>)}
-              </select>
-            </Field>
+            <div className="supplier-picker">
+              <Field label={`בחר ספק קיים (${suppliers.length})`}>
+                <select value={suppliers.some((supplier) => supplier.name === order.supplierName) ? order.supplierName : ""} onChange={(event) => selectSupplier(event.target.value)}>
+                  <option value="">בחר ספק מהרשימה...</option>
+                  {suppliers.map((supplier) => <option key={supplier.id} value={supplier.name}>{supplier.name}</option>)}
+                </select>
+              </Field>
+              <button className="button supplier-new-button" type="button" onClick={beginNewSupplier}>+ הוספת ספק חדש</button>
+            </div>
+            <p className="supplier-help">להזנה ידנית, לחץ על „הוספת ספק חדש” ומלא את השדות הבאים.</p>
             <div className="form-grid two">
-              <Field label="שם הספק" required><input placeholder="חברה או בעל מקצוע" value={order.supplierName} onChange={(event) => setField("supplierName", event.target.value)} /></Field>
+              <Field label="שם הספק" required><input ref={supplierNameRef} placeholder="חברה או בעל מקצוע" value={order.supplierName} onChange={(event) => setField("supplierName", event.target.value)} /></Field>
               <Field label="ח.פ. / עוסק"><input inputMode="numeric" value={order.supplierId} onChange={(event) => setField("supplierId", event.target.value)} /></Field>
               <Field label="איש קשר"><input value={order.supplierContact} onChange={(event) => setField("supplierContact", event.target.value)} /></Field>
               <Field label="טלפון"><input type="tel" value={order.supplierPhone} onChange={(event) => setField("supplierPhone", event.target.value)} /></Field>

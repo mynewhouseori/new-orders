@@ -42,6 +42,9 @@ h1 { margin: 4px 0 0; font-size: clamp(27px, 3vw, 40px); letter-spacing: -.035em
 .field { display: grid; gap: 7px; min-width: 0; }
 .field > span { font-size: 13px; font-weight: 800; color: #394740; }
 .field b { color: #a84b3f; }
+.supplier-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.supplier-new-button { min-height: 43px; color: var(--forest); border-color: #9eb0a6; background: #eef3f0; white-space: nowrap; }
+.supplier-help { margin: -11px 0 0; color: var(--muted); font-size: 12px; }
 input, textarea, select { width: 100%; min-width: 0; border: 1px solid #ccd5cf; border-radius: 9px; padding: 11px 12px; background: #fcfdfc; color: var(--ink); outline: none; transition: border-color .15s, box-shadow .15s; }
 textarea { resize: vertical; line-height: 1.5; }
 input:focus, textarea:focus, select:focus { border-color: var(--forest-2); box-shadow: 0 0 0 3px rgba(88,112,100,.11); }
@@ -106,6 +109,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--forest-2); box-s
   .header-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
   .header-actions .primary { grid-column: 1 / -1; }
   .form-grid.two { grid-template-columns: 1fr; }
+  .supplier-picker { grid-template-columns: 1fr; }
+  .supplier-new-button { width: 100%; }
   .editor-panel { padding: 19px; }
   .order-preview { padding: 24px 18px; overflow: hidden; }
   .doc-row { grid-template-columns: 105px minmax(0, 1fr); font-size: 12px; }
