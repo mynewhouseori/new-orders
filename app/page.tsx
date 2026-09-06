@@ -72,10 +72,42 @@ export default function Home() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [view, setView] = useState<"edit" | "history">("edit");
   const [notice, setNotice] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("moshe-hadif-orders");
-    if (saved) setOrders(JSON.parse(saved));
+    let active = true;
+    const loadOrders = async () => {
+      try {
+        const response = await fetch("/api/orders", { cache: "no-store" });
+        if (!response.ok) throw new Error("load failed");
+        const data = await response.json() as { orders: Order[] };
+        let syncedOrders = data.orders;
+
+        const legacy = localStorage.getItem("moshe-hadif-orders");
+        const legacyOrders = legacy ? JSON.parse(legacy) as Order[] : [];
+        if (!syncedOrders.length && legacyOrders.length) {
+          const migrated = await Promise.all(legacyOrders.map(async (item) => {
+            const result = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(item),
+            });
+            const payload = await result.json() as { order: Order };
+            return payload.order;
+          }));
+          syncedOrders = migrated;
+          localStorage.removeItem("moshe-hadif-orders");
+        }
+        if (active) setOrders(syncedOrders);
+      } catch {
+        if (active) setNotice("לא ניתן לטעון כרגע את המאגר המשותף");
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    void loadOrders();
+    return () => { active = false; };
   }, []);
 
   const setField = <K extends keyof Order>(field: K, value: Order[K]) => {
@@ -95,15 +127,28 @@ export default function Home() {
     window.setTimeout(() => setNotice(""), 2600);
   };
 
-  const saveOrder = () => {
+  const saveOrder = async () => {
     if (!order.title.trim() || !order.supplierName.trim()) {
       flash("יש למלא לפחות כותרת ושם ספק");
       return;
     }
-    const updated = [order, ...orders.filter((item) => item.id !== order.id)];
-    setOrders(updated);
-    localStorage.setItem("moshe-hadif-orders", JSON.stringify(updated));
-    flash("ההזמנה נשמרה במכשיר");
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(order),
+      });
+      const data = await response.json() as { order?: Order; error?: string };
+      if (!response.ok || !data.order) throw new Error(data.error || "save failed");
+      setOrder(data.order);
+      setOrders((current) => [data.order!, ...current.filter((item) => item.id !== data.order!.id)]);
+      flash("ההזמנה נשמרה וסונכרנה");
+    } catch {
+      flash("השמירה נכשלה. בדקו את החיבור ונסו שוב");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const newOrder = () => {
@@ -117,11 +162,15 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const deleteOrder = (id: string) => {
-    const updated = orders.filter((item) => item.id !== id);
-    setOrders(updated);
-    localStorage.setItem("moshe-hadif-orders", JSON.stringify(updated));
-    flash("הטיוטה נמחקה");
+  const deleteOrder = async (id: string) => {
+    try {
+      const response = await fetch(`/api/orders?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("delete failed");
+      setOrders((current) => current.filter((item) => item.id !== id));
+      flash("הטיוטה נמחקה מכל המכשירים");
+    } catch {
+      flash("לא ניתן למחוק כרגע את ההזמנה");
+    }
   };
 
   const exportExcel = () => {
@@ -158,17 +207,19 @@ export default function Home() {
         <nav className="header-actions" aria-label="פעולות הזמנה">
           <button className="button ghost" type="button" onClick={newOrder}>הזמנה חדשה</button>
           <button className="button secondary" type="button" onClick={() => setView(view === "edit" ? "history" : "edit")}>{view === "edit" ? `הזמנות (${orders.length})` : "חזרה לעריכה"}</button>
-          <button className="button primary" type="button" onClick={saveOrder}>שמירת טיוטה</button>
+          <button className="button primary" type="button" disabled={isSaving} onClick={() => void saveOrder()}>{isSaving ? "שומר..." : "שמירת טיוטה"}</button>
         </nav>
       </header>
 
       {view === "history" ? (
         <section className="history-view no-print">
           <div className="section-heading">
-            <div><span className="eyebrow">מאגר מקומי</span><h2>הזמנות שמורות</h2></div>
+            <div><span className="eyebrow">מאגר משותף ומסונכרן</span><h2>הזמנות שמורות</h2></div>
             <button className="button secondary" type="button" onClick={exportExcel}>ייצוא לאקסל</button>
           </div>
-          {!orders.length ? (
+          {isLoading ? (
+            <div className="empty-state"><span>···</span><h3>טוען את ההזמנות</h3><p>המאגר המשותף מסתנכרן.</p></div>
+          ) : !orders.length ? (
             <div className="empty-state"><span>01</span><h3>עדיין אין הזמנות שמורות</h3><p>שמרו את ההזמנה הראשונה והיא תופיע כאן.</p><button className="button primary" type="button" onClick={newOrder}>יצירת הזמנה</button></div>
           ) : (
             <div className="order-list">
@@ -219,7 +270,7 @@ export default function Home() {
             </div>
 
             <div className="editor-actions">
-              <button className="button primary" type="button" onClick={saveOrder}>שמירת הזמנה</button>
+              <button className="button primary" type="button" disabled={isSaving} onClick={() => void saveOrder()}>{isSaving ? "שומר ומסנכרן..." : "שמירת הזמנה"}</button>
               <button className="button secondary" type="button" onClick={() => window.print()}>הדפסה / PDF</button>
             </div>
           </form>
