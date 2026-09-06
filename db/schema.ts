@@ -24,3 +24,17 @@ export const orders = sqliteTable("orders", {
   index("idx_orders_updated_at").on(table.updatedAt),
   index("idx_orders_status").on(table.status),
 ]);
+
+export const suppliers = sqliteTable("suppliers", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  companyId: text("company_id").notNull().default(""),
+  contactName: text("contact_name").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  email: text("email").notNull().default(""),
+  address: text("address").notNull().default(""),
+  source: text("source").notNull().default(""),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  index("idx_suppliers_name").on(table.name),
+]);

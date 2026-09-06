@@ -1,6 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { ensureOrdersSchema, getDb } from "../../../db";
-import { orders } from "../../../db/schema";
+import { orders, suppliers } from "../../../db/schema";
 
 type OrderInput = typeof orders.$inferInsert;
 
@@ -52,6 +52,28 @@ export async function POST(request: Request) {
     };
 
     const db = getDb();
+    await db.insert(suppliers).values({
+      id: `supplier-${crypto.randomUUID()}`,
+      name: value.supplierName,
+      companyId: value.supplierId,
+      contactName: value.supplierContact,
+      phone: value.supplierPhone,
+      email: value.supplierEmail,
+      address: value.supplierAddress,
+      source: "נשמר באפליקציה",
+      updatedAt: value.updatedAt,
+    }).onConflictDoUpdate({
+      target: suppliers.name,
+      set: {
+        companyId: sql`CASE WHEN excluded.company_id <> '' THEN excluded.company_id ELSE ${suppliers.companyId} END`,
+        contactName: sql`CASE WHEN excluded.contact_name <> '' THEN excluded.contact_name ELSE ${suppliers.contactName} END`,
+        phone: sql`CASE WHEN excluded.phone <> '' THEN excluded.phone ELSE ${suppliers.phone} END`,
+        email: sql`CASE WHEN excluded.email <> '' THEN excluded.email ELSE ${suppliers.email} END`,
+        address: sql`CASE WHEN excluded.address <> '' THEN excluded.address ELSE ${suppliers.address} END`,
+        source: "נשמר באפליקציה",
+        updatedAt: value.updatedAt,
+      },
+    });
     const [saved] = await db.insert(orders).values(value).onConflictDoUpdate({
       target: orders.id,
       set: value,

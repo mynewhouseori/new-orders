@@ -24,6 +24,18 @@ type Order = {
   updatedAt: string;
 };
 
+type Supplier = {
+  id: string;
+  name: string;
+  companyId: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  address: string;
+  source: string;
+  updatedAt: string;
+};
+
 const COMPANY = {
   officeAddress: "בית סילבר, דרך אבא הלל 7, רמת גן 5252204",
   siteAddress: "מגן אברהם 17/19, יפו תל אביב",
@@ -70,6 +82,7 @@ const escapeCsv = (value: string) => `"${String(value ?? "").replaceAll('"', '""
 export default function Home() {
   const [order, setOrder] = useState<Order>(() => blankOrder());
   const [orders, setOrders] = useState<Order[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [view, setView] = useState<"edit" | "history">("edit");
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -79,9 +92,13 @@ export default function Home() {
     let active = true;
     const loadOrders = async () => {
       try {
-        const response = await fetch("/api/orders", { cache: "no-store" });
-        if (!response.ok) throw new Error("load failed");
+        const [response, supplierResponse] = await Promise.all([
+          fetch("/api/orders", { cache: "no-store" }),
+          fetch("/api/suppliers", { cache: "no-store" }),
+        ]);
+        if (!response.ok || !supplierResponse.ok) throw new Error("load failed");
         const data = await response.json() as { orders: Order[] };
+        const supplierData = await supplierResponse.json() as { suppliers: Supplier[] };
         let syncedOrders = data.orders;
 
         const legacy = localStorage.getItem("moshe-hadif-orders");
@@ -99,7 +116,10 @@ export default function Home() {
           syncedOrders = migrated;
           localStorage.removeItem("moshe-hadif-orders");
         }
-        if (active) setOrders(syncedOrders);
+        if (active) {
+          setOrders(syncedOrders);
+          setSuppliers(supplierData.suppliers);
+        }
       } catch {
         if (active) setNotice("לא ניתן לטעון כרגע את המאגר המשותף");
       } finally {
@@ -112,6 +132,33 @@ export default function Home() {
 
   const setField = <K extends keyof Order>(field: K, value: Order[K]) => {
     setOrder((current) => ({ ...current, [field]: value, updatedAt: new Date().toISOString() }));
+  };
+
+  const selectSupplier = (name: string) => {
+    const selected = suppliers.find((supplier) => supplier.name === name);
+    if (!selected) {
+      setOrder((current) => ({
+        ...current,
+        supplierName: "",
+        supplierId: "",
+        supplierContact: "",
+        supplierPhone: "",
+        supplierEmail: "",
+        supplierAddress: "",
+        updatedAt: new Date().toISOString(),
+      }));
+      return;
+    }
+    setOrder((current) => ({
+      ...current,
+      supplierName: selected.name,
+      supplierId: selected.companyId,
+      supplierContact: selected.contactName,
+      supplierPhone: selected.phone,
+      supplierEmail: selected.email,
+      supplierAddress: selected.address,
+      updatedAt: new Date().toISOString(),
+    }));
   };
 
   const nextNumber = useMemo(() => {
@@ -143,6 +190,21 @@ export default function Home() {
       if (!response.ok || !data.order) throw new Error(data.error || "save failed");
       setOrder(data.order);
       setOrders((current) => [data.order!, ...current.filter((item) => item.id !== data.order!.id)]);
+      setSuppliers((current) => {
+        const savedSupplier: Supplier = {
+          id: current.find((item) => item.name === data.order!.supplierName)?.id || `supplier-${data.order!.id}`,
+          name: data.order!.supplierName,
+          companyId: data.order!.supplierId,
+          contactName: data.order!.supplierContact,
+          phone: data.order!.supplierPhone,
+          email: data.order!.supplierEmail,
+          address: data.order!.supplierAddress,
+          source: "נשמר באפליקציה",
+          updatedAt: data.order!.updatedAt,
+        };
+        return [savedSupplier, ...current.filter((item) => item.name !== savedSupplier.name)]
+          .sort((a, b) => a.name.localeCompare(b.name, "he"));
+      });
       flash("ההזמנה נשמרה וסונכרנה");
     } catch {
       flash("השמירה נכשלה. בדקו את החיבור ונסו שוב");
@@ -243,9 +305,15 @@ export default function Home() {
               <Field label="מספר הזמנה"><input value={order.orderNumber} onChange={(event) => setField("orderNumber", event.target.value)} /></Field>
               <Field label="תאריך הוצאה"><input type="date" value={order.orderDate} onChange={(event) => setField("orderDate", event.target.value)} /></Field>
             </div>
-            <Field label="כותרת ההזמנה" required><input autoFocus placeholder="לדוגמה: עבודות מיזוג אוויר" value={order.title} onChange={(event) => setField("title", event.target.value)} /></Field>
+            <Field label="כותרת ההזמנה" required><input placeholder="לדוגמה: עבודות מיזוג אוויר" value={order.title} onChange={(event) => setField("title", event.target.value)} /></Field>
 
             <Divider number="02" title="פרטי הספק" />
+            <Field label={`בחירת ספק קיים (${suppliers.length})`}>
+              <select value={suppliers.some((supplier) => supplier.name === order.supplierName) ? order.supplierName : ""} onChange={(event) => selectSupplier(event.target.value)}>
+                <option value="">ספק חדש / הזנה ידנית</option>
+                {suppliers.map((supplier) => <option key={supplier.id} value={supplier.name}>{supplier.name}</option>)}
+              </select>
+            </Field>
             <div className="form-grid two">
               <Field label="שם הספק" required><input placeholder="חברה או בעל מקצוע" value={order.supplierName} onChange={(event) => setField("supplierName", event.target.value)} /></Field>
               <Field label="ח.פ. / עוסק"><input inputMode="numeric" value={order.supplierId} onChange={(event) => setField("supplierId", event.target.value)} /></Field>
