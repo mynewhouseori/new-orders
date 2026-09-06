@@ -264,6 +264,31 @@ export default function Home() {
     flash("קובץ הנתונים מוכן לפתיחה באקסל");
   };
 
+  const buildShareText = () => [
+    `הזמנת עבודה ${order.orderNumber}`,
+    order.title,
+    `תאריך: ${displayDate(order.orderDate)}`,
+    `ספק: ${order.supplierName || "טרם הוזן"}`,
+    order.supplierContact && `איש קשר: ${order.supplierContact}`,
+    order.supplierPhone && `טלפון: ${order.supplierPhone}`,
+    order.deliveryDate && `מועד אספקה: ${displayDate(order.deliveryDate)}`,
+    order.description && `תיאור: ${order.description}`,
+    order.cost && `עלות: ₪ ${Number(order.cost).toLocaleString("he-IL")} ${order.vatIncluded === "כן" ? "כולל מע״מ" : "לא כולל מע״מ"}`,
+    order.priceIncludes && `המחיר כולל: ${order.priceIncludes}`,
+    `תנאי תשלום: ${order.paymentTerms}`,
+    "קבוצת משה חדיף – פרויקט מגן אברהם 17/19",
+  ].filter(Boolean).join("\n");
+
+  const shareWhatsApp = () => {
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(buildShareText())}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const shareEmail = () => {
+    const subject = `הזמנת עבודה ${order.orderNumber}${order.title ? ` – ${order.title}` : ""}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildShareText())}`;
+  };
+
   const supplierLine = [order.supplierName, order.supplierId && `ח.פ./עוסק ${order.supplierId}`].filter(Boolean).join(" · ");
   const supplierContactLine = [order.supplierContact, order.supplierPhone, order.supplierEmail].filter(Boolean).join(" · ");
 
@@ -357,6 +382,8 @@ export default function Home() {
             <div className="editor-actions">
               <button className="button primary" type="button" disabled={isSaving} onClick={() => void saveOrder()}>{isSaving ? "שומר ומסנכרן..." : "שמירת הזמנה"}</button>
               <button className="button secondary" type="button" onClick={() => window.print()}>הדפסה / PDF</button>
+              <button className="button share whatsapp" type="button" onClick={shareWhatsApp}>שיתוף ב‑WhatsApp</button>
+              <button className="button share email" type="button" onClick={shareEmail}>שיתוף במייל</button>
             </div>
           </form>
 

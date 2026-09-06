@@ -29,6 +29,9 @@ h1 { margin: 4px 0 0; font-size: clamp(27px, 3vw, 40px); letter-spacing: -.035em
 .button.primary { background: var(--forest); color: white; box-shadow: 0 7px 18px rgba(48,74,62,.17); }
 .button.secondary { color: var(--forest); border-color: #b9c5be; background: #fff; }
 .button.ghost { color: var(--muted); background: transparent; }
+.button.share { color: #fff; }
+.button.whatsapp { background: #247b51; }
+.button.email { background: #3e6580; }
 .workspace { max-width: 1480px; margin: auto; display: grid; grid-template-columns: minmax(350px, .76fr) minmax(600px, 1.24fr); gap: 28px; align-items: start; }
 .editor-panel { padding: 26px; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 60px rgba(29,44,36,.07); display: grid; gap: 19px; }
 .panel-heading { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px; }
@@ -108,6 +111,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--forest-2); box-s
   .app-header { flex-direction: column; }
   .header-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
   .header-actions .primary { grid-column: 1 / -1; }
+  .editor-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .editor-actions .primary { grid-column: 1 / -1; }
   .form-grid.two { grid-template-columns: 1fr; }
   .supplier-picker { grid-template-columns: 1fr; }
   .supplier-new-button { width: 100%; }
