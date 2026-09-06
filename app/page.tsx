@@ -87,6 +87,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
   const supplierNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -178,16 +179,25 @@ export default function Home() {
   };
 
   const saveOrder = async () => {
-    if (!order.title.trim() || !order.supplierName.trim()) {
-      flash("יש למלא לפחות כותרת ושם ספק");
+    const liveTitle = titleRef.current?.value.trim() || order.title.trim();
+    const liveSupplierName = supplierNameRef.current?.value.trim() || order.supplierName.trim();
+    if (!liveTitle) {
+      titleRef.current?.focus();
+      flash("יש למלא את כותרת ההזמנה");
       return;
     }
+    if (!liveSupplierName) {
+      supplierNameRef.current?.focus();
+      flash("יש למלא את השדה „שם הספק”");
+      return;
+    }
+    const orderToSave = { ...order, title: liveTitle, supplierName: liveSupplierName };
     setIsSaving(true);
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(order),
+        body: JSON.stringify(orderToSave),
       });
       const data = await response.json() as { order?: Order; error?: string };
       if (!response.ok || !data.order) throw new Error(data.error || "save failed");
@@ -308,7 +318,7 @@ export default function Home() {
               <Field label="מספר הזמנה"><input value={order.orderNumber} onChange={(event) => setField("orderNumber", event.target.value)} /></Field>
               <Field label="תאריך הוצאה"><input type="date" value={order.orderDate} onChange={(event) => setField("orderDate", event.target.value)} /></Field>
             </div>
-            <Field label="כותרת ההזמנה" required><input placeholder="לדוגמה: עבודות מיזוג אוויר" value={order.title} onChange={(event) => setField("title", event.target.value)} /></Field>
+            <Field label="כותרת ההזמנה" required><input ref={titleRef} name="orderTitle" autoComplete="off" placeholder="לדוגמה: עבודות מיזוג אוויר" value={order.title} onChange={(event) => setField("title", event.target.value)} /></Field>
 
             <Divider number="02" title="פרטי הספק" />
             <div className="supplier-picker">
@@ -322,7 +332,7 @@ export default function Home() {
             </div>
             <p className="supplier-help">להזנה ידנית, לחץ על „הוספת ספק חדש” ומלא את השדות הבאים.</p>
             <div className="form-grid two">
-              <Field label="שם הספק" required><input ref={supplierNameRef} placeholder="חברה או בעל מקצוע" value={order.supplierName} onChange={(event) => setField("supplierName", event.target.value)} /></Field>
+              <Field label="שם הספק" required><input ref={supplierNameRef} name="supplierName" autoComplete="organization" placeholder="חברה או בעל מקצוע" value={order.supplierName} onChange={(event) => setField("supplierName", event.target.value)} /></Field>
               <Field label="ח.פ. / עוסק"><input inputMode="numeric" value={order.supplierId} onChange={(event) => setField("supplierId", event.target.value)} /></Field>
               <Field label="איש קשר"><input value={order.supplierContact} onChange={(event) => setField("supplierContact", event.target.value)} /></Field>
               <Field label="טלפון"><input type="tel" value={order.supplierPhone} onChange={(event) => setField("supplierPhone", event.target.value)} /></Field>
