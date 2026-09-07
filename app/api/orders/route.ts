@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       id: payload.id,
       orderNumber: payload.orderNumber?.trim() || "ללא מספר",
       orderDate: payload.orderDate || new Date().toISOString().slice(0, 10),
+      siteId: payload.siteId === "lohomei_sinai" ? "lohomei_sinai" : "magen_avraham",
       title: payload.title.trim(),
       supplierName: payload.supplierName.trim(),
       supplierId: payload.supplierId || "",

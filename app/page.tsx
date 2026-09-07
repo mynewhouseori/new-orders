@@ -6,6 +6,7 @@ type Order = {
   id: string;
   orderNumber: string;
   orderDate: string;
+  siteId: "magen_avraham" | "lohomei_sinai";
   title: string;
   supplierName: string;
   supplierId: string;
@@ -38,16 +39,31 @@ type Supplier = {
 
 const COMPANY = {
   officeAddress: "בית סילבר, דרך אבא הלל 7, רמת גן 5252204",
-  siteAddress: "מגן אברהם 17/19, יפו תל אביב",
   officeContact: "צחי לנדאו",
   officePhone: "052-4310350",
   officeEmail: "zahi@zlandau.co.il",
-  siteContact: "אורי לוין",
-  sitePhone: "052-3679976",
-  siteEmail: "mynewhouseori@gmail.com",
   mainPhone: "03-5094002",
   invoiceEmail: "ramzi@hadif.co.il",
 };
+
+const SITES = {
+  magen_avraham: {
+    name: "מגן אברהם",
+    heading: "מגן אברהם 17/19",
+    address: "מגן אברהם 17/19, יפו תל אביב",
+    fieldContact: "אורי לוין",
+    fieldPhone: "052-3679976",
+    fieldEmail: "mynewhouseori@gmail.com",
+  },
+  lohomei_sinai: {
+    name: "לוחמי סיני",
+    heading: "לוחמי סיני 19/2",
+    address: "לוחמי סיני 19/2, רמת גן",
+    fieldContact: "",
+    fieldPhone: "",
+    fieldEmail: "",
+  },
+} as const;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -55,6 +71,7 @@ const blankOrder = (number = "MA-2026-001"): Order => ({
   id: crypto.randomUUID(),
   orderNumber: number,
   orderDate: today(),
+  siteId: "magen_avraham",
   title: "",
   supplierName: "",
   supplierId: "",
@@ -90,6 +107,7 @@ export default function Home() {
   const [shareTarget, setShareTarget] = useState<"whatsapp" | "email" | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const supplierNameRef = useRef<HTMLInputElement>(null);
+  const selectedSite = SITES[order.siteId || "magen_avraham"];
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -262,8 +280,8 @@ export default function Home() {
       flash("עדיין אין הזמנות שמורות לייצוא");
       return;
     }
-    const headers = ["מספר הזמנה", "תאריך", "כותרת", "ספק", "ח.פ./עוסק", "איש קשר", "טלפון", "דוא״ל", "כתובת", "מועד אספקה", "עלות", "כולל מע״מ", "המחיר כולל", "תנאי תשלום", "תיאור", "סטטוס", "מאשר"];
-    const rows = orders.map((item) => [item.orderNumber, item.orderDate, item.title, item.supplierName, item.supplierId, item.supplierContact, item.supplierPhone, item.supplierEmail, item.supplierAddress, item.deliveryDate, item.cost, item.vatIncluded, item.priceIncludes, item.paymentTerms, item.description, item.status, item.approver]);
+    const headers = ["מספר הזמנה", "תאריך", "אתר", "כותרת", "ספק", "ח.פ./עוסק", "איש קשר", "טלפון", "דוא״ל", "כתובת", "מועד אספקה", "עלות", "כולל מע״מ", "המחיר כולל", "תנאי תשלום", "תיאור", "סטטוס", "מאשר"];
+    const rows = orders.map((item) => [item.orderNumber, item.orderDate, SITES[item.siteId || "magen_avraham"].name, item.title, item.supplierName, item.supplierId, item.supplierContact, item.supplierPhone, item.supplierEmail, item.supplierAddress, item.deliveryDate, item.cost, item.vatIncluded, item.priceIncludes, item.paymentTerms, item.description, item.status, item.approver]);
     const csv = "\uFEFF" + [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -361,7 +379,7 @@ export default function Home() {
         <div className="brand-lockup">
           <div className="brand-mark">MH</div>
           <div>
-            <span className="eyebrow">פרויקט מגן אברהם 17/19</span>
+            <span className="eyebrow">פרויקט {selectedSite.heading}</span>
             <h1>מחולל הזמנות עבודה</h1>
           </div>
         </div>
@@ -387,7 +405,7 @@ export default function Home() {
               {orders.map((item) => (
                 <article className="order-row" key={item.id}>
                   <div className="order-index">{item.orderNumber.slice(-3)}</div>
-                  <div><span className="status-pill">{item.status}</span><h3>{item.title}</h3><p>{item.supplierName} · {displayDate(item.orderDate)}</p></div>
+                  <div><span className="status-pill">{item.status}</span><h3>{item.title}</h3><p>{item.supplierName} · {SITES[item.siteId || "magen_avraham"].name} · {displayDate(item.orderDate)}</p></div>
                   <div className="row-cost">{item.cost ? `₪ ${Number(item.cost).toLocaleString("he-IL")}` : "ללא עלות"}</div>
                   <div className="row-actions"><button type="button" onClick={() => editOrder(item)}>עריכה</button><button className="danger" type="button" onClick={() => deleteOrder(item.id)}>מחיקה</button></div>
                 </article>
@@ -404,6 +422,12 @@ export default function Home() {
               <Field label="מספר הזמנה"><input value={order.orderNumber} onChange={(event) => setField("orderNumber", event.target.value)} /></Field>
               <Field label="תאריך הוצאה"><input type="date" value={order.orderDate} onChange={(event) => setField("orderDate", event.target.value)} /></Field>
             </div>
+            <Field label="אתר הבנייה">
+              <select value={order.siteId || "magen_avraham"} onChange={(event) => setField("siteId", event.target.value as Order["siteId"])}>
+                <option value="magen_avraham">מגן אברהם 17/19, יפו תל אביב</option>
+                <option value="lohomei_sinai">לוחמי סיני 19/2, רמת גן</option>
+              </select>
+            </Field>
             <Field label="כותרת ההזמנה" required><input ref={titleRef} name="orderTitle" autoComplete="off" placeholder="לדוגמה: עבודות מיזוג אוויר" value={order.title} onChange={(event) => setField("title", event.target.value)} /></Field>
 
             <Divider number="02" title="פרטי הספק" />
@@ -460,9 +484,9 @@ export default function Home() {
 
               <section className="document-section company-details">
                 <DocRow label="כתובת המשרד" value={COMPANY.officeAddress} />
-                <DocRow label="כתובת האתר" value={COMPANY.siteAddress} />
+                <DocRow label="כתובת האתר" value={selectedSite.address} />
                 <DocRow label="איש קשר משרד" value={`${COMPANY.officeContact}  ${COMPANY.officePhone}`} extra={COMPANY.officeEmail} />
-                <DocRow label="איש קשר שטח" value={`${COMPANY.siteContact}  ${COMPANY.sitePhone}`} extra={COMPANY.siteEmail} />
+                {selectedSite.fieldContact && <DocRow label="איש קשר שטח" value={`${selectedSite.fieldContact}  ${selectedSite.fieldPhone}`} extra={selectedSite.fieldEmail} />}
                 <DocRow label="טל משרד" value={COMPANY.mainPhone} />
                 <DocRow label="דוא״ל לחשבונית" value={COMPANY.invoiceEmail} />
               </section>

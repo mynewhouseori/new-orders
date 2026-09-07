@@ -20,6 +20,7 @@ export async function ensureOrdersSchema() {
       id TEXT PRIMARY KEY NOT NULL,
       order_number TEXT NOT NULL,
       order_date TEXT NOT NULL,
+      site_id TEXT NOT NULL DEFAULT 'magen_avraham',
       title TEXT NOT NULL,
       supplier_name TEXT NOT NULL,
       supplier_id TEXT NOT NULL DEFAULT '',

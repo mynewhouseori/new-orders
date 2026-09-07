@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `site_id` text DEFAULT 'magen_avraham' NOT NULL;

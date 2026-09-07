@@ -4,6 +4,7 @@ export const orders = sqliteTable("orders", {
   id: text("id").primaryKey(),
   orderNumber: text("order_number").notNull(),
   orderDate: text("order_date").notNull(),
+  siteId: text("site_id").notNull().default("magen_avraham"),
   title: text("title").notNull(),
   supplierName: text("supplier_name").notNull(),
   supplierId: text("supplier_id").notNull().default(""),
