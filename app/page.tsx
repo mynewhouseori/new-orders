@@ -281,7 +281,7 @@ export default function Home() {
       return;
     }
     const headers = ["מספר הזמנה", "תאריך", "אתר", "כותרת", "ספק", "ח.פ./עוסק", "איש קשר", "טלפון", "דוא״ל", "כתובת", "מועד אספקה", "עלות", "כולל מע״מ", "המחיר כולל", "תנאי תשלום", "תיאור", "סטטוס", "מאשר"];
-    const rows = orders.map((item) => [item.orderNumber, item.orderDate, SITES[item.siteId || "magen_avraham"].name, item.title, item.supplierName, item.supplierId, item.supplierContact, item.supplierPhone, item.supplierEmail, item.supplierAddress, item.deliveryDate, item.cost, item.vatIncluded, item.priceIncludes, item.paymentTerms, item.description, item.status, item.approver]);
+    const rows = orders.map((item) => [item.orderNumber, item.orderDate, SITES[item.siteId || "magen_avraham"].name, item.title, item.supplierName, item.supplierId, item.supplierContact, item.supplierPhone, item.supplierEmail, item.supplierAddress, item.deliveryDate, item.cost, item.cost === "לפי הצעת מחיר" ? "לפי הצעת מחיר" : item.vatIncluded, item.priceIncludes, item.paymentTerms, item.description, item.status, item.approver]);
     const csv = "\uFEFF" + [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -406,7 +406,7 @@ export default function Home() {
                 <article className="order-row" key={item.id}>
                   <div className="order-index">{item.orderNumber.slice(-3)}</div>
                   <div><span className="status-pill">{item.status}</span><h3>{item.title}</h3><p>{item.supplierName} · {SITES[item.siteId || "magen_avraham"].name} · {displayDate(item.orderDate)}</p></div>
-                  <div className="row-cost">{item.cost ? `₪ ${Number(item.cost).toLocaleString("he-IL")}` : "ללא עלות"}</div>
+                  <div className="row-cost">{item.cost === "לפי הצעת מחיר" ? item.cost : item.cost ? `₪ ${Number(item.cost).toLocaleString("he-IL")}` : "ללא עלות"}</div>
                   <div className="row-actions"><button type="button" onClick={() => editOrder(item)}>עריכה</button><button className="danger" type="button" onClick={() => deleteOrder(item.id)}>מחיקה</button></div>
                 </article>
               ))}
@@ -454,8 +454,9 @@ export default function Home() {
             <Field label="תיאור העבודה או פרטי הציוד"><textarea rows={6} placeholder="פירוט העבודה, כמויות, מידות, דגמים והערות" value={order.description} onChange={(event) => setField("description", event.target.value)} /></Field>
             <div className="form-grid two">
               <Field label="מועד אספקה"><input type="date" value={order.deliveryDate} onChange={(event) => setField("deliveryDate", event.target.value)} /></Field>
-              <Field label="עלות בש״ח"><input type="number" min="0" step="0.01" placeholder="0" value={order.cost} onChange={(event) => setField("cost", event.target.value)} /></Field>
-              <Field label="האם העלות כוללת מע״מ?"><select value={order.vatIncluded} onChange={(event) => setField("vatIncluded", event.target.value as Order["vatIncluded"])}><option>לא</option><option>כן</option></select></Field>
+              <Field label="עלות בש״ח"><select value={order.cost === "לפי הצעת מחיר" ? "quote" : "amount"} onChange={(event) => setField("cost", event.target.value === "quote" ? "לפי הצעת מחיר" : "")}><option value="amount">הזנת סכום</option><option value="quote">לפי הצעת מחיר</option></select></Field>
+              {order.cost !== "לפי הצעת מחיר" && <Field label="סכום בש״ח"><input type="number" min="0" step="0.01" placeholder="0" value={order.cost} onChange={(event) => setField("cost", event.target.value)} /></Field>}
+              {order.cost !== "לפי הצעת מחיר" && <Field label="האם העלות כוללת מע״מ?"><select value={order.vatIncluded} onChange={(event) => setField("vatIncluded", event.target.value as Order["vatIncluded"])}><option>לא</option><option>כן</option></select></Field>}
               <Field label="תנאי תשלום"><select value={order.paymentTerms} onChange={(event) => setField("paymentTerms", event.target.value)}><option>מיידי</option><option>שוטף + 30</option><option>שוטף + 45</option><option>שוטף + 60</option><option>45 יום</option><option>אחר</option></select></Field>
             </div>
             <Field label="המחיר כולל"><textarea rows={3} placeholder="אספקה, עבודה, הובלה, התקנה, פירוק וכד׳" value={order.priceIncludes} onChange={(event) => setField("priceIncludes", event.target.value)} /></Field>
@@ -496,7 +497,7 @@ export default function Home() {
                 {order.supplierAddress && <DocRow label="כתובת ספק" value={order.supplierAddress} />}
                 <DocRow label="מועד אספקה" value={displayDate(order.deliveryDate)} emphasis />
                 <DocRow label="תיאור העבודה" value={order.description || "—"} large />
-                <DocRow label="עלות העבודה" value={order.cost ? `₪ ${Number(order.cost).toLocaleString("he-IL")} ${order.vatIncluded === "כן" ? "כולל מע״מ" : "לא כולל מע״מ"}` : "—"} emphasis />
+                <DocRow label="עלות העבודה" value={order.cost === "לפי הצעת מחיר" ? order.cost : order.cost ? `₪ ${Number(order.cost).toLocaleString("he-IL")} ${order.vatIncluded === "כן" ? "כולל מע״מ" : "לא כולל מע״מ"}` : "—"} emphasis />
                 <DocRow label="המחיר כולל" value={order.priceIncludes || "—"} tall />
                 <DocRow label="תנאי תשלום" value={order.paymentTerms} emphasis />
               </section>
